@@ -12,8 +12,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export function ProductsList() {
-  const [isClient, setIsClient] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: serverProducts = [], isLoading, isError, refetch } = useGetProductsQuery();
@@ -24,13 +23,14 @@ export function ProductsList() {
   const dispatch = useAppDispatch();
   const favorites = useSelector((state: RootState) => state.favorites.items);
 
+  // Инициализация mounted state
   useEffect(() => {
-    setIsClient(true);
+    setIsMounted(true);
   }, []);
 
-  // Инициализация данных (один раз)
+  // Загрузка данных при монтировании
   useEffect(() => {
-    if (!isClient || initialized) return;
+    if (!isMounted) return;
 
     const savedNewProducts = JSON.parse(sessionStorage.getItem('newProducts') || '[]');
     const savedLocalProducts = JSON.parse(sessionStorage.getItem('products') || '[]');
@@ -40,22 +40,19 @@ export function ProductsList() {
       serverProducts.map(p => ({ 
         ...p, 
         rating: p.rating || { rate: 0, count: 0 } 
-      }))
-    );
-    
-    setInitialized(true);
-  }, [isClient, serverProducts, initialized]);
+      })));
+  }, [isMounted, serverProducts]);
 
   // Сохранение данных при изменении
   useEffect(() => {
-    if (!isClient) return;
+    if (!isMounted) return;
     sessionStorage.setItem('newProducts', JSON.stringify(newProducts));
     sessionStorage.setItem('products', JSON.stringify(localProducts));
-  }, [isClient, newProducts, localProducts]);
+  }, [isMounted, newProducts, localProducts]);
 
   // Обработка обновления данных
   useEffect(() => {
-    if (!isClient) return;
+    if (!isMounted) return;
     if (searchParams.get('refresh')) {
       refetch().then(() => {
         sessionStorage.removeItem('newProducts');
@@ -69,7 +66,7 @@ export function ProductsList() {
         router.replace('/products');
       });
     }
-  }, [isClient, searchParams, refetch, router, serverProducts]);
+  }, [isMounted, searchParams, refetch, router, serverProducts]);
 
   // Обработчик лайков
   const handleToggleFavorite = useCallback((e: React.MouseEvent, product: Product) => {
@@ -87,29 +84,29 @@ export function ProductsList() {
       } 
     };
 
-    if (product.id < 0) {
+    if (newProducts.some(p => p.id === product.id)) {
       setNewProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
     } else {
       setLocalProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
     }
 
     dispatch(toggleFavorite(product.id));
-  }, [favorites, dispatch]);
+  }, [favorites, dispatch, newProducts]);
 
   // Обработчик удаления
   const handleDelete = useCallback((e: React.MouseEvent, productId: number) => {
     e.stopPropagation();
     if (!window.confirm('Вы уверены, что хотите удалить товар?')) return;
     
-    if (productId < 0) {
+    if (newProducts.some(p => p.id === productId)) {
       setNewProducts(prev => prev.filter(p => p.id !== productId));
     } else {
       setLocalProducts(prev => prev.filter(p => p.id !== productId));
     }
-  }, []);
+  }, [newProducts]);
 
-  // Объединенные продукты
-  const allProducts = useMemo(() => [...localProducts, ...newProducts], [localProducts, newProducts]);
+  // Объединенные продукты (новые в начале списка)
+  const allProducts = useMemo(() => [...newProducts, ...localProducts], [newProducts, localProducts]);
 
   // Фильтрация продуктов
   const filteredProducts = useMemo(() => {
@@ -118,7 +115,7 @@ export function ProductsList() {
       : allProducts;
   }, [allProducts, favorites, showOnlyFavorites]);
 
-  if (!isClient || isLoading) return <div className={styles.loading}>Загрузка...</div>;
+  if (!isMounted || isLoading) return <div className={styles.loading}>Загрузка...</div>;
   if (isError) return <div className={styles.error}>Ошибка загрузки товаров</div>;
 
   return (
@@ -147,7 +144,9 @@ export function ProductsList() {
             className={styles.cardWrapper}
             onClick={() => router.push(`/products/${product.id}`)}
           >
-            {product.id < 0 && <div className={styles.newBadge}>Новый</div>}
+            {newProducts.some(p => p.id === product.id) && (
+              <div className={styles.newBadge}>Новый</div>
+            )}
             <ProductCard
               product={product}
               isFavorite={favorites.includes(product.id)}

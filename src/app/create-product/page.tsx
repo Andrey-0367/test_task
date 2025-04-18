@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.scss";
-import { useAddProductMutation } from "@/features/products/api/productsApi";
+import { useAddProductMutation, useGetProductsQuery } from "@/features/products/api/productsApi";
 import { useState, useRef } from "react";
 import { Product } from "@/shared/types/products";
 
@@ -21,6 +21,7 @@ export default function CreateProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { data: serverProducts = [] } = useGetProductsQuery();
   const {
     register,
     handleSubmit,
@@ -56,9 +57,15 @@ export default function CreateProductPage() {
         return;
       }
 
+      // Генерация нового ID
+      const existingProducts = JSON.parse(sessionStorage.getItem('products') || '[]');
+      const newId = existingProducts.length > 0 
+        ? Math.max(...existingProducts.map((p: Product) => p.id)) + 1 
+        : 1;
+
       // Создаем временный продукт
       const tempProduct: Product = {
-        id: -Date.now(), // Отрицательный ID для новых продуктов
+        id: newId,
         title: data.title,
         price: Number(data.price),
         description: data.description,
@@ -68,21 +75,19 @@ export default function CreateProductPage() {
       };
 
       // Сохраняем в sessionStorage
-      const existingProducts = JSON.parse(sessionStorage.getItem('newProducts') || '[]');
-      const updatedProducts = [...existingProducts, tempProduct];
+      const existingNewProducts = JSON.parse(sessionStorage.getItem('newProducts') || '[]');
+      const updatedProducts = [tempProduct, ...existingNewProducts];
       sessionStorage.setItem('newProducts', JSON.stringify(updatedProducts));
 
-      // Отправляем на сервер (если нужно)
-      if (process.env.NODE_ENV === 'production') {
-        const formData = new FormData();
-        formData.append('title', data.title);
-        formData.append('price', data.price);
-        formData.append('description', data.description);
-        formData.append('category', data.category);
-        formData.append('image', file);
-        
-        await addProduct(formData).unwrap();
-      }
+      // Отправляем на сервер
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('price', data.price);
+      formData.append('description', data.description);
+      formData.append('category', data.category);
+      formData.append('image', file);
+
+      await addProduct(formData).unwrap();
 
       // Перенаправляем на страницу товаров
       router.push("/products");
