@@ -1,0 +1,13 @@
+# Query: setValue
+# ContextLines: 1
+
+Результаты: 2 - 1 файл
+
+src\app\create-product\page.tsx:
+  27      formState: { errors },
+  28:     setValue,
+  29      watch
+
+  54      if (files && files.length > 0) {
+  55:       setValue('image', files);
+  56        setFileName(files[0].name);
