@@ -1,39 +1,44 @@
-'use client';
+"use client";
 
-import { useGetProductsQuery } from '@/features/products/api/productsApi';
-import { ProductCard } from '@/components/ProductCard/ProductCard';
-import { useSelector } from 'react-redux';
-import { toggleFavorite } from '@/features/favorites/favoritesSlice';
-import { RootState } from '@/store/store';
-import { useAppDispatch } from '@/store/hooks';
-import styles from './ProductsList.module.scss';
-import { Product } from '@/shared/types/products';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useGetProductsQuery } from "@/features/products/api/productsApi";
+import { ProductCard } from "@/components/ProductCard/ProductCard";
+import { useSelector } from "react-redux";
+import { toggleFavorite } from "@/features/favorites/favoritesSlice";
+import { RootState } from "@/store/store";
+import { useAppDispatch } from "@/store/hooks";
+import styles from "./ProductsList.module.scss";
+import { Product } from "@/shared/types/products";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function ProductsList() {
+  // 1. Состояния
   const [isMounted, setIsMounted] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: serverProducts = [], isLoading, isError, refetch } = useGetProductsQuery();
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-  
+
+  // 2. Хуки маршрутизации и параметров
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 3. Redux хуки
   const dispatch = useAppDispatch();
   const favorites = useSelector((state: RootState) => state.favorites.items);
 
-  // Инициализация mounted state
+  // 4. API хуки
+  const { data: serverProducts = [], isLoading, isError, refetch } = useGetProductsQuery();
+
+  // 5. Эффекты
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Загрузка данных при монтировании
   useEffect(() => {
     if (!isMounted) return;
 
-    const savedNewProducts = JSON.parse(sessionStorage.getItem('newProducts') || '[]');
-    const savedLocalProducts = JSON.parse(sessionStorage.getItem('products') || '[]');
+    const savedNewProducts = JSON.parse(sessionStorage.getItem("newProducts") || "[]");
+    const savedLocalProducts = JSON.parse(sessionStorage.getItem("products") || "[]");
     
     setNewProducts(savedNewProducts);
     setLocalProducts(savedLocalProducts.length > 0 ? savedLocalProducts : 
@@ -43,32 +48,30 @@ export function ProductsList() {
       })));
   }, [isMounted, serverProducts]);
 
-  // Сохранение данных при изменении
   useEffect(() => {
     if (!isMounted) return;
-    sessionStorage.setItem('newProducts', JSON.stringify(newProducts));
-    sessionStorage.setItem('products', JSON.stringify(localProducts));
+    sessionStorage.setItem("newProducts", JSON.stringify(newProducts));
+    sessionStorage.setItem("products", JSON.stringify(localProducts));
   }, [isMounted, newProducts, localProducts]);
 
-  // Обработка обновления данных
   useEffect(() => {
     if (!isMounted) return;
-    if (searchParams.get('refresh')) {
+    if (searchParams.get("refresh")) {
       refetch().then(() => {
-        sessionStorage.removeItem('newProducts');
+        sessionStorage.removeItem("newProducts");
         const freshProducts = serverProducts.map(p => ({ 
           ...p, 
           rating: p.rating || { rate: 0, count: 0 } 
         }));
         setLocalProducts(freshProducts);
         setNewProducts([]);
-        sessionStorage.setItem('products', JSON.stringify(freshProducts));
-        router.replace('/products');
+        sessionStorage.setItem("products", JSON.stringify(freshProducts));
+        router.replace("/products");
       });
     }
   }, [isMounted, searchParams, refetch, router, serverProducts]);
 
-  // Обработчик лайков
+  // 6. Обработчики (useCallback)
   const handleToggleFavorite = useCallback((e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     
@@ -93,10 +96,9 @@ export function ProductsList() {
     dispatch(toggleFavorite(product.id));
   }, [favorites, dispatch, newProducts]);
 
-  // Обработчик удаления
   const handleDelete = useCallback((e: React.MouseEvent, productId: number) => {
     e.stopPropagation();
-    if (!window.confirm('Вы уверены, что хотите удалить товар?')) return;
+    if (!window.confirm("Вы уверены, что хотите удалить товар?")) return;
     
     if (newProducts.some(p => p.id === productId)) {
       setNewProducts(prev => prev.filter(p => p.id !== productId));
@@ -105,16 +107,24 @@ export function ProductsList() {
     }
   }, [newProducts]);
 
-  // Объединенные продукты (новые в начале списка)
+  const handleProductClick = useCallback((product: Product) => {
+    return (e: React.MouseEvent) => {
+      e.stopPropagation();
+      sessionStorage.setItem(`product_${product.id}`, JSON.stringify(product));
+      router.push(`/products/${product.id}`);
+    };
+  }, [router]);
+
+  // 7. Мемоизированные значения
   const allProducts = useMemo(() => [...newProducts, ...localProducts], [newProducts, localProducts]);
 
-  // Фильтрация продуктов
   const filteredProducts = useMemo(() => {
     return showOnlyFavorites
       ? allProducts.filter(product => favorites.includes(product.id))
       : allProducts;
   }, [allProducts, favorites, showOnlyFavorites]);
 
+  // 8. Рендер
   if (!isMounted || isLoading) return <div className={styles.loading}>Загрузка...</div>;
   if (isError) return <div className={styles.error}>Ошибка загрузки товаров</div>;
 
@@ -123,13 +133,13 @@ export function ProductsList() {
       <div className={styles.controls}>
         <div className={styles.filterButtons}>
           <button
-            className={`${styles.filterButton} ${!showOnlyFavorites ? styles.active : ''}`}
+            className={`${styles.filterButton} ${!showOnlyFavorites ? styles.active : ""}`}
             onClick={() => setShowOnlyFavorites(false)}
           >
             Все товары
           </button>
           <button
-            className={`${styles.filterButton} ${showOnlyFavorites ? styles.active : ''}`}
+            className={`${styles.filterButton} ${showOnlyFavorites ? styles.active : ""}`}
             onClick={() => setShowOnlyFavorites(true)}
           >
             Избранное
@@ -142,11 +152,8 @@ export function ProductsList() {
           <div 
             key={`${product.id}-${product.rating?.count}`}
             className={styles.cardWrapper}
-            onClick={() => router.push(`/products/${product.id}`)}
+            onClick={handleProductClick(product)}
           >
-            {newProducts.some(p => p.id === product.id) && (
-              <div className={styles.newBadge}>Новый</div>
-            )}
             <ProductCard
               product={product}
               isFavorite={favorites.includes(product.id)}
