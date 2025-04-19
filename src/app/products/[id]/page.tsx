@@ -1,15 +1,25 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Product } from '@/shared/types/products';
-import { useGetProductByIdQuery } from '@/features/products/api/productsApi';
-import styles from './page.module.scss';
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Product } from "@/shared/types/products";
+import { useGetProductByIdQuery } from "@/features/products/api/productsApi";
+import styles from "./page.module.scss";
+import { useRouter } from "next/navigation";
 
 export default function ProductPage() {
+  const router = useRouter();
   const params = useParams();
   const [product, setProduct] = useState<Product | null>(null);
-  const { data: serverProduct, isLoading, isError } = useGetProductByIdQuery(Number(params.id));
+  const {
+    data: serverProduct,
+    isLoading,
+    isError,
+  } = useGetProductByIdQuery(Number(params.id));
+
+  const handleBack = () => {
+    router.push("/products");
+  };
 
   useEffect(() => {
     const savedProduct = sessionStorage.getItem(`product_${params.id}`);
@@ -19,7 +29,7 @@ export default function ProductPage() {
         setProduct(product);
         return;
       } catch (e) {
-        console.error('Error parsing product from sessionStorage', e);
+        console.error("Error parsing product from sessionStorage", e);
       }
     }
 
@@ -39,6 +49,9 @@ export default function ProductPage() {
 
   return (
     <div className={styles.container}>
+      <button onClick={handleBack} className={styles.backButton}>
+        ← Вернуться к продуктам
+      </button>
       <div className={styles.productContainer}>
         <div className={styles.imageContainer}>
           <img

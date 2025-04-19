@@ -1,19 +1,26 @@
 .container {
   padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+// Стили для кнопок фильтрации
+.controls {
+  margin-bottom: 30px;
 }
 
 .filterButtons {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
 }
 
 .filterButton {
-  padding: 8px 16px;
+  padding: 10px 20px;
   border: 1px solid #ddd;
   background: white;
-  border-radius: 4px;
   cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
   transition: all 0.2s;
 
   &:hover {
@@ -21,66 +28,61 @@
   }
 
   &.active {
-    background: #007bff;
+    background: #0070f3;
     color: white;
-    border-color: #007bff;
+    border-color: #0070f3;
   }
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-  align-items: stretch; /* Это ключевое свойство */
-}
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 
-.cardWrapper {
-  height: 100%; /* Занимает всю доступную высоту */
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: transform 0.2s;
+  @media (max-width: 1023px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 
-  &:hover {
-    transform: translateY(-5px);
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.emptyMessage {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 40px;
-  color: #666;
-  font-size: 1.2rem;
+.cardWrapper {
+  // Убираем фиксированное соотношение сторон, чтобы фото могло растягиваться
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.loading, .error {
-  text-align: center;
-  padding: 40px;
-  font-size: 1.2rem;
-}
-
-.error {
-  color: #dc3545;
-}
-
-.controls {
+// Стили для пагинации
+.pagination {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
+  margin-top: 40px;
+  width: 100%;
 
-.addButton {
-  padding: 8px 16px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  button {
+    padding: 12px 24px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+    min-width: 120px;
+    font-size: 16px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-  &:hover {
-    background-color: #45a049;
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #f5f5f5;
+    }
+
+    &:not(:disabled):hover {
+      background: #f0f0f0;
+    }
   }
 }

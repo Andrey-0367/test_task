@@ -10,68 +10,84 @@ import styles from "./ProductsList.module.scss";
 import { Product } from "@/shared/types/products";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSessionStorage } from "./hooks/useSessionStorage";
+
 
 export function ProductsList() {
-  // 1. Состояния
+  // 1. Состояния и хуки
   const [isMounted, setIsMounted] = useState(false);
-  const [localProducts, setLocalProducts] = useState<Product[]>([]);
-  const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [productsPerRow, setProductsPerRow] = useState(4);
+  const productsPerPage = 3 * productsPerRow;
 
-  // 2. Хуки маршрутизации и параметров
+  // 2. Использование кастомного хука для sessionStorage
+  const [newProducts, setNewProducts] = useSessionStorage<Product[]>("newProducts", []);
+  const [localProducts, setLocalProducts] = useSessionStorage<Product[]>("products", []);
+
+  // 3. Хуки маршрутизации и параметров
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 3. Redux хуки
+  // 4. Redux хуки
   const dispatch = useAppDispatch();
   const favorites = useSelector((state: RootState) => state.favorites.items);
 
-  // 4. API хуки
+  // 5. API хуки
   const { data: serverProducts = [], isLoading, isError, refetch } = useGetProductsQuery();
 
-  // 5. Эффекты
+  // 6. Эффекты
+  useEffect(() => {
+    const updateProductsPerRow = () => {
+      const width = window.innerWidth;
+      if (width < 640) setProductsPerRow(2);
+      else if (width < 1024) setProductsPerRow(3);
+      else setProductsPerRow(4);
+    };
+
+    updateProductsPerRow();
+    window.addEventListener('resize', updateProductsPerRow);
+    return () => window.removeEventListener('resize', updateProductsPerRow);
+  }, []);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Инициализация localProducts при монтировании, если они пустые
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || localProducts.length > 0 || serverProducts.length === 0) return;
 
-    const savedNewProducts = JSON.parse(sessionStorage.getItem("newProducts") || "[]");
-    const savedLocalProducts = JSON.parse(sessionStorage.getItem("products") || "[]");
-    
-    setNewProducts(savedNewProducts);
-    setLocalProducts(savedLocalProducts.length > 0 ? savedLocalProducts : 
-      serverProducts.map(p => ({ 
-        ...p, 
-        rating: p.rating || { rate: 0, count: 0 } 
-      })));
-  }, [isMounted, serverProducts]);
+    const initializedProducts = serverProducts.map(p => ({
+      ...p,
+      rating: p.rating || { rate: 0, count: 0 }
+    }));
+    setLocalProducts(initializedProducts);
+  }, [isMounted, serverProducts, localProducts, setLocalProducts]);
 
+  // Обработка параметра refresh
   useEffect(() => {
-    if (!isMounted) return;
-    sessionStorage.setItem("newProducts", JSON.stringify(newProducts));
-    sessionStorage.setItem("products", JSON.stringify(localProducts));
-  }, [isMounted, newProducts, localProducts]);
+    if (!isMounted || !searchParams.get("refresh")) return;
 
-  useEffect(() => {
-    if (!isMounted) return;
-    if (searchParams.get("refresh")) {
-      refetch().then(() => {
-        sessionStorage.removeItem("newProducts");
-        const freshProducts = serverProducts.map(p => ({ 
-          ...p, 
-          rating: p.rating || { rate: 0, count: 0 } 
+    const handleRefresh = async () => {
+      try {
+        await refetch();
+        const freshProducts = serverProducts.map(p => ({
+          ...p,
+          rating: p.rating || { rate: 0, count: 0 }
         }));
         setLocalProducts(freshProducts);
         setNewProducts([]);
-        sessionStorage.setItem("products", JSON.stringify(freshProducts));
         router.replace("/products");
-      });
-    }
-  }, [isMounted, searchParams, refetch, router, serverProducts]);
+      } catch (error) {
+        console.error("Error refreshing products:", error);
+      }
+    };
 
-  // 6. Обработчики (useCallback)
+    handleRefresh();
+  }, [isMounted, searchParams, refetch, router, serverProducts, setLocalProducts, setNewProducts]);
+
+  // 7. Обработчики
   const handleToggleFavorite = useCallback((e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     
@@ -87,25 +103,30 @@ export function ProductsList() {
       } 
     };
 
+    const updateProducts = (products: Product[]) => 
+      products.map(p => p.id === product.id ? updatedProduct : p);
+
     if (newProducts.some(p => p.id === product.id)) {
-      setNewProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+      setNewProducts(prev => updateProducts(prev));
     } else {
-      setLocalProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+      setLocalProducts(prev => updateProducts(prev));
     }
 
     dispatch(toggleFavorite(product.id));
-  }, [favorites, dispatch, newProducts]);
+  }, [favorites, dispatch, newProducts, setNewProducts, setLocalProducts]);
 
   const handleDelete = useCallback((e: React.MouseEvent, productId: number) => {
     e.stopPropagation();
     if (!window.confirm("Вы уверены, что хотите удалить товар?")) return;
     
+    const filterProducts = (products: Product[]) => products.filter(p => p.id !== productId);
+    
     if (newProducts.some(p => p.id === productId)) {
-      setNewProducts(prev => prev.filter(p => p.id !== productId));
+      setNewProducts(prev => filterProducts(prev));
     } else {
-      setLocalProducts(prev => prev.filter(p => p.id !== productId));
+      setLocalProducts(prev => filterProducts(prev));
     }
-  }, [newProducts]);
+  }, [newProducts, setNewProducts, setLocalProducts]);
 
   const handleProductClick = useCallback((product: Product) => {
     return (e: React.MouseEvent) => {
@@ -115,7 +136,7 @@ export function ProductsList() {
     };
   }, [router]);
 
-  // 7. Мемоизированные значения
+  // 8. Мемоизированные значения
   const allProducts = useMemo(() => [...newProducts, ...localProducts], [newProducts, localProducts]);
 
   const filteredProducts = useMemo(() => {
@@ -124,7 +145,20 @@ export function ProductsList() {
       : allProducts;
   }, [allProducts, favorites, showOnlyFavorites]);
 
-  // 8. Рендер
+  // Пагинация
+  const indexOfLastProduct = currentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  // Сбрасываем на первую страницу при изменении фильтров
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [showOnlyFavorites, favorites]);
+
+  // 9. Рендер
   if (!isMounted || isLoading) return <div className={styles.loading}>Загрузка...</div>;
   if (isError) return <div className={styles.error}>Ошибка загрузки товаров</div>;
 
@@ -148,7 +182,7 @@ export function ProductsList() {
       </div>
 
       <div className={styles.grid}>
-        {filteredProducts.map(product => (
+        {currentProducts.map(product => (
           <div 
             key={`${product.id}-${product.rating?.count}`}
             className={styles.cardWrapper}
@@ -163,6 +197,24 @@ export function ProductsList() {
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+  <div className={styles.pagination}>
+    <button 
+      onClick={() => paginate(Math.max(1, currentPage - 1))}
+      disabled={currentPage === 1}
+    >
+      Назад
+    </button>
+    
+    <button 
+      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+      disabled={currentPage === totalPages}
+    >
+      Вперед
+    </button>
+  </div>
+)}
     </div>
   );
 }
