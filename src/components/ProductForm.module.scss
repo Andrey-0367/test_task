@@ -1,0 +1,119 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-weight: 600;
+  color: #444;
+}
+
+.input {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #0070f3;
+  }
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.select {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  background-color: white;
+}
+
+.addCategoryButton {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #0070f3;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  width: fit-content;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.fileInputContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileInputLabel {
+  padding: 10px 15px;
+  background: #f0f0f0;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #e0e0e0;
+  }
+}
+
+.fileInput {
+  display: none;
+}
+
+.fileName {
+  color: #0070f3;
+  font-size: 14px;
+}
+
+.filePlaceholder {
+  color: #999;
+  font-size: 14px;
+}
+
+.error {
+  color: #e53935;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.submitButton {
+  padding: 12px 24px;
+  background: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 10px;
+
+  &:hover:not(:disabled) {
+    background: #0060d0;
+  }
+
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+}

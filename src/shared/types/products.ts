@@ -1,6 +1,6 @@
 export interface ProductBase {
   title: string;
-  price: number;
+  price: string | number; 
   description: string;
   category: string;
   image: string;
@@ -8,6 +8,8 @@ export interface ProductBase {
     rate: number;
     count: number;
   };
+  updatedAt?: string;
+  _isLocal?: boolean;
 }
 
 export interface Product extends ProductBase {
@@ -16,7 +18,7 @@ export interface Product extends ProductBase {
 
 export interface ProductFormData {
   title: string;
-  price: number; 
+  price: string | number; 
   description: string;
   category: string;
   image: string; 

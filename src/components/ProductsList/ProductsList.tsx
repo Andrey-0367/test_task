@@ -1,5 +1,4 @@
 "use client";
-
 import { useGetProductsQuery } from "@/features/products/api/productsApi";
 import { ProductCard } from "@/components/ProductCard/ProductCard";
 import { useSelector } from "react-redux";
@@ -8,213 +7,310 @@ import { RootState } from "@/store/store";
 import { useAppDispatch } from "@/store/hooks";
 import styles from "./ProductsList.module.scss";
 import { Product } from "@/shared/types/products";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSessionStorage } from "./hooks/useSessionStorage";
 
+type FilterMode = "all" | "categories" | "favorites";
 
 export function ProductsList() {
-  // 1. Состояния и хуки
-  const [isMounted, setIsMounted] = useState(false);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  // Состояния
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerRow, setProductsPerRow] = useState(4);
-  const productsPerPage = 3 * productsPerRow;
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [deletedServerIds, setDeletedServerIds] = useState<number[]>([]);
 
-  // 2. Использование кастомного хука для sessionStorage
-  const [newProducts, setNewProducts] = useSessionStorage<Product[]>("newProducts", []);
-  const [localProducts, setLocalProducts] = useSessionStorage<Product[]>("products", []);
+  // Реф для меню категорий
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
-  // 3. Хуки маршрутизации и параметров
+  // Данные с сервера
+  const {
+    data: serverProducts = [],
+    isLoading,
+    isError,
+  } = useGetProductsQuery();
+
+  // Внешние зависимости
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // 4. Redux хуки
   const dispatch = useAppDispatch();
   const favorites = useSelector((state: RootState) => state.favorites.items);
 
-  // 5. API хуки
-  const { data: serverProducts = [], isLoading, isError, refetch } = useGetProductsQuery();
-
-  // 6. Эффекты
+  // Загрузка локальных данных
   useEffect(() => {
-    const updateProductsPerRow = () => {
-      const width = window.innerWidth;
-      if (width < 640) setProductsPerRow(2);
-      else if (width < 1024) setProductsPerRow(3);
-      else setProductsPerRow(4);
-    };
+    const storedProducts = sessionStorage.getItem("localProducts");
+    const storedDeleted = sessionStorage.getItem("deletedServerIds");
 
-    updateProductsPerRow();
-    window.addEventListener('resize', updateProductsPerRow);
-    return () => window.removeEventListener('resize', updateProductsPerRow);
+    if (storedProducts) setLocalProducts(JSON.parse(storedProducts));
+    if (storedDeleted) setDeletedServerIds(JSON.parse(storedDeleted));
   }, []);
 
+  // Объединение продуктов (новые в начале)
+  const allProducts = useMemo(() => {
+    const filteredServerProducts = serverProducts.filter(
+      (p) => !deletedServerIds.includes(p.id)
+    );
+    return [...localProducts, ...filteredServerProducts];
+  }, [serverProducts, localProducts, deletedServerIds]);
+
+  // Категории
+  const categories = useMemo(() => {
+    return Array.from(new Set(allProducts.map((p) => p.category)))
+      .filter((category) => category !== undefined && category !== null)
+      .sort();
+  }, [allProducts]);
+
+  // Фильтрация продуктов
+  const filteredProducts = useMemo(() => {
+    let result = [...allProducts];
+
+    if (filterMode === "favorites") {
+      result = result.filter((p) => favorites.includes(p.id));
+    } else if (filterMode === "categories" && selectedCategory) {
+      result = result.filter((p) => p.category === selectedCategory);
+    }
+
+    return result;
+  }, [allProducts, favorites, filterMode, selectedCategory]);
+
+  // Пагинация
+  const productsPerPage = 9;
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + productsPerPage
+  );
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
+  // Обработчик клика вне меню
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Инициализация localProducts при монтировании, если они пустые
-  useEffect(() => {
-    if (!isMounted || localProducts.length > 0 || serverProducts.length === 0) return;
-
-    const initializedProducts = serverProducts.map(p => ({
-      ...p,
-      rating: p.rating || { rate: 0, count: 0 }
-    }));
-    setLocalProducts(initializedProducts);
-  }, [isMounted, serverProducts, localProducts, setLocalProducts]);
-
-  // Обработка параметра refresh
-  useEffect(() => {
-    if (!isMounted || !searchParams.get("refresh")) return;
-
-    const handleRefresh = async () => {
-      try {
-        await refetch();
-        const freshProducts = serverProducts.map(p => ({
-          ...p,
-          rating: p.rating || { rate: 0, count: 0 }
-        }));
-        setLocalProducts(freshProducts);
-        setNewProducts([]);
-        router.replace("/products");
-      } catch (error) {
-        console.error("Error refreshing products:", error);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        categoryMenuRef.current &&
+        !categoryMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsCategoryMenuOpen(false);
       }
     };
 
-    handleRefresh();
-  }, [isMounted, searchParams, refetch, router, serverProducts, setLocalProducts, setNewProducts]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // 7. Обработчики
-  const handleToggleFavorite = useCallback((e: React.MouseEvent, product: Product) => {
+  // Обработчики событий
+  const handleCategoryMenuToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    
-    const newCount = favorites.includes(product.id) 
-      ? Math.max(0, (product.rating?.count || 0) - 1)
-      : (product.rating?.count || 0) + 1;
-    
-    const updatedProduct = { 
-      ...product, 
-      rating: { 
-        ...(product.rating || { rate: 0, count: 0 }), 
-        count: newCount 
-      } 
-    };
+    setIsCategoryMenuOpen((prev) => !prev);
+  };
 
-    const updateProducts = (products: Product[]) => 
-      products.map(p => p.id === product.id ? updatedProduct : p);
-
-    if (newProducts.some(p => p.id === product.id)) {
-      setNewProducts(prev => updateProducts(prev));
-    } else {
-      setLocalProducts(prev => updateProducts(prev));
-    }
-
-    dispatch(toggleFavorite(product.id));
-  }, [favorites, dispatch, newProducts, setNewProducts, setLocalProducts]);
-
-  const handleDelete = useCallback((e: React.MouseEvent, productId: number) => {
-    e.stopPropagation();
-    if (!window.confirm("Вы уверены, что хотите удалить товар?")) return;
-    
-    const filterProducts = (products: Product[]) => products.filter(p => p.id !== productId);
-    
-    if (newProducts.some(p => p.id === productId)) {
-      setNewProducts(prev => filterProducts(prev));
-    } else {
-      setLocalProducts(prev => filterProducts(prev));
-    }
-  }, [newProducts, setNewProducts, setLocalProducts]);
-
-  const handleProductClick = useCallback((product: Product) => {
-    return (e: React.MouseEvent) => {
-      e.stopPropagation();
-      sessionStorage.setItem(`product_${product.id}`, JSON.stringify(product));
-      router.push(`/products/${product.id}`);
-    };
-  }, [router]);
-
-  // 8. Мемоизированные значения
-  const allProducts = useMemo(() => [...newProducts, ...localProducts], [newProducts, localProducts]);
-
-  const filteredProducts = useMemo(() => {
-    return showOnlyFavorites
-      ? allProducts.filter(product => favorites.includes(product.id))
-      : allProducts;
-  }, [allProducts, favorites, showOnlyFavorites]);
-
-  // Пагинация
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  // Сбрасываем на первую страницу при изменении фильтров
-  useEffect(() => {
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory((prev) => (prev === category ? null : category));
+    setFilterMode("categories");
     setCurrentPage(1);
-  }, [showOnlyFavorites, favorites]);
+    setIsCategoryMenuOpen(false);
+  };
 
-  // 9. Рендер
-  if (!isMounted || isLoading) return <div className={styles.loading}>Загрузка...</div>;
-  if (isError) return <div className={styles.error}>Ошибка загрузки товаров</div>;
+  // Исправленный обработчик удаления
+  const handleDelete = useCallback(
+    (productId: number) => {
+      if (!window.confirm("Вы уверены, что хотите удалить этот товар?")) return;
+
+      // Проверяем, является ли продукт локальным (ID >= 1000)
+      if (productId >= 1000) {
+        const updatedProducts = localProducts.filter((p) => p.id !== productId);
+        setLocalProducts(updatedProducts);
+        sessionStorage.setItem("localProducts", JSON.stringify(updatedProducts));
+      } else {
+        // Для серверных продуктов добавляем ID в список удаленных
+        if (!deletedServerIds.includes(productId)) {
+          const updatedDeleted = [...deletedServerIds, productId];
+          setDeletedServerIds(updatedDeleted);
+          sessionStorage.setItem(
+            "deletedServerIds",
+            JSON.stringify(updatedDeleted)
+          );
+        }
+      }
+    },
+    [localProducts, deletedServerIds]
+  );
+
+  const handleEdit = useCallback(
+    (productId: number) => {
+      router.push(`/products/edit/${productId}`);
+    },
+    [router]
+  );
+
+  const handleToggleFavorite = useCallback(
+    (productId: number) => {
+      dispatch(toggleFavorite(productId));
+    },
+    [dispatch]
+  );
+
+  const handleFilterChange = useCallback((mode: FilterMode) => {
+    setFilterMode(mode);
+    setSelectedCategory(null);
+    setCurrentPage(1);
+    setIsCategoryMenuOpen(false);
+  }, []);
+
+  // Обработка добавления нового продукта
+  useEffect(() => {
+    if (searchParams.has('new')) {
+      try {
+        const newProductJson = searchParams.get('new');
+        if (newProductJson) {
+          const newProductData = JSON.parse(newProductJson);
+          
+          // Генерируем ID для нового продукта (начиная с 1000)
+          const newId = localProducts.length > 0 
+            ? Math.max(...localProducts.map(p => p.id)) + 1 
+            : 1000;
+  
+          const newProduct: Product = {
+            ...newProductData,
+            id: newId,
+            rating: { rate: 0, count: 0 }
+          };
+  
+          // Добавляем новый продукт в начало списка
+          const updatedProducts = [newProduct, ...localProducts];
+          setLocalProducts(updatedProducts);
+          sessionStorage.setItem("localProducts", JSON.stringify(updatedProducts));
+  
+          // Очищаем параметр URL (исправленная версия)
+          const newSearchParams = new URLSearchParams(searchParams.toString());
+          newSearchParams.delete('new');
+          router.replace(`/products?${newSearchParams.toString()}`);
+        }
+      } catch (e) {
+        console.error("Ошибка при добавлении нового продукта", e);
+      }
+    }
+  }, [searchParams, localProducts, router]);
+
+  if (isLoading)
+    return <div className={styles.loading}>Загрузка товаров...</div>;
+  if (isError)
+    return <div className={styles.error}>Ошибка загрузки данных</div>;
 
   return (
     <div className={styles.container}>
       <div className={styles.controls}>
         <div className={styles.filterButtons}>
           <button
-            className={`${styles.filterButton} ${!showOnlyFavorites ? styles.active : ""}`}
-            onClick={() => setShowOnlyFavorites(false)}
+            className={`${styles.filterButton} ${
+              filterMode === "all" && styles.active
+            }`}
+            onClick={() => handleFilterChange("all")}
           >
             Все товары
           </button>
+
+          <div className={styles.categoryDropdown} ref={categoryMenuRef}>
+            <button
+              className={`${styles.filterButton} ${
+                filterMode === "categories" && styles.active
+              }`}
+              onClick={handleCategoryMenuToggle}
+              aria-expanded={isCategoryMenuOpen}
+            >
+              Категории
+              <span className={styles.arrow}>
+                {isCategoryMenuOpen ? "▲" : "▼"}
+              </span>
+            </button>
+
+            {isCategoryMenuOpen && (
+              <div className={styles.categoryMenu}>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    className={`${styles.categoryButton} ${
+                      selectedCategory === category && styles.selected
+                    }`}
+                    onClick={() => handleCategorySelect(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
-            className={`${styles.filterButton} ${showOnlyFavorites ? styles.active : ""}`}
-            onClick={() => setShowOnlyFavorites(true)}
+            className={`${styles.filterButton} ${
+              filterMode === "favorites" && styles.active
+            }`}
+            onClick={() => handleFilterChange("favorites")}
           >
-            Избранное
+            Избранное ({favorites.length})
           </button>
         </div>
-      </div>
 
-      <div className={styles.grid}>
-        {currentProducts.map(product => (
-          <div 
-            key={`${product.id}-${product.rating?.count}`}
-            className={styles.cardWrapper}
-            onClick={handleProductClick(product)}
-          >
-            <ProductCard
-              product={product}
-              isFavorite={favorites.includes(product.id)}
-              onToggleFavorite={(e) => handleToggleFavorite(e, product)}
-              onDelete={(e) => handleDelete(e, product.id)}
-            />
+        {selectedCategory && (
+          <div className={styles.activeCategory}>
+            <span>{selectedCategory}</span>
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={styles.clearCategory}
+            >
+              &times;
+            </button>
           </div>
-        ))}
+        )}
       </div>
 
-      {totalPages > 1 && (
-  <div className={styles.pagination}>
-    <button 
-      onClick={() => paginate(Math.max(1, currentPage - 1))}
-      disabled={currentPage === 1}
-    >
-      Назад
-    </button>
-    
-    <button 
-      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-      disabled={currentPage === totalPages}
-    >
-      Вперед
-    </button>
-  </div>
-)}
+      {filteredProducts.length === 0 ? (
+        <div className={styles.emptyState}>
+          {filterMode === "favorites"
+            ? "В избранном пока нет товаров"
+            : "Товары не найдены. Попробуйте изменить критерии поиска."}
+        </div>
+      ) : (
+        <>
+          <div className={styles.productsGrid}>
+            {paginatedProducts.map((product) => (
+              <ProductCard
+                key={`product-${product.id}`}
+                product={product}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={handleToggleFavorite}
+                onDelete={() => handleDelete(product.id)}
+                onEdit={() => handleEdit(product.id)}
+              />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={styles.pageButton}
+              >
+                &larr; Назад
+              </button>
+              <span className={styles.pageInfo}>
+                Страница {currentPage} из {totalPages}
+              </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className={styles.pageButton}
+              >
+                Вперед &rarr;
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

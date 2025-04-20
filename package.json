@@ -1,7 +1,8 @@
 {
   "name": "product-spa",
   "scripts": {
-    "mock-server": "json-server --watch db.json --port 3001",
+    "clean": "rm -rf .next && rm -rf node_modules/.cache",
+    "clean:full": "npm run clean && rm -rf node_modules package-lock.json",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

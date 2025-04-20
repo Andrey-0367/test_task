@@ -24,7 +24,7 @@ const productsSlice = createSlice({
     fetchProductsSuccess(state, action: PayloadAction<Product[]>) {
       state.items = action.payload.map(product => ({
         ...product,
-        rating: product.rating // Гарантировано есть из API
+        rating: product.rating 
       }));
       state.loading = false;
     },
