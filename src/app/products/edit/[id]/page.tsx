@@ -1,89 +1,66 @@
 "use client";
 import { useRouter, useParams } from "next/navigation";
-import styles from "./page.module.scss";
 import { ProductForm, ProductFormValues } from "@/components/ProductForm";
-import { Product } from "@/shared/types/products";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { updateProduct } from "@/features/products/productsSlice";
+import styles from "./page.module.scss";
+import { RootState } from "@/store/store";
 import { useGetProductsQuery } from "@/features/products/api/productsApi";
+import { useRef } from "react";
 
-export default function ProductEditPage() {
+export default function EditProductPage() {
+  const { id } = useParams();
   const router = useRouter();
-  const params = useParams();
-  const productId = Number(params.id);
-  const [existingCategories, setExistingCategories] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const dispatch = useDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const { data: serverProducts = [] } = useGetProductsQuery();
-  const [localProducts, setLocalProducts] = useState<Product[]>([]);
-  const [modifiedProducts, setModifiedProducts] = useState<Record<number, Product>>({});
+  const product = useSelector((state: RootState) => 
+    state.products.localProducts.find(p => p.id === Number(id))
+  );
 
-  // Загрузка данных
-  useEffect(() => {
-    const storedProducts = sessionStorage.getItem("products");
-    const storedModified = sessionStorage.getItem("modifiedProducts");
+  const { data: serverProduct } = useGetProductsQuery(undefined, {
+    skip: !!product,
+    selectFromResult: ({ data }) => ({
+      data: data?.find(p => p.id === Number(id))
+    })
+  });
+
+  const handleSubmit = (formData: ProductFormValues, file: File | null) => {
+    const productToUpdate = product || serverProduct;
+    if (!productToUpdate) return;
     
-    if (storedProducts) setLocalProducts(JSON.parse(storedProducts));
-    if (storedModified) setModifiedProducts(JSON.parse(storedModified));
-  }, []);
+    const updatedProduct = {
+      ...productToUpdate,
+      title: formData.title,
+      price: parseFloat(formData.price),
+      description: formData.description,
+      category: formData.newCategory?.trim() || formData.category,
+      image: file ? URL.createObjectURL(file) : productToUpdate.image
+    };
 
-  // Поиск продукта для редактирования
-  const productToEdit = useMemo(() => {
-    if (productId >= 20) {
-      return localProducts.find(p => p.id === productId);
-    } else {
-      const serverProduct = serverProducts.find(p => p.id === productId);
-      return modifiedProducts[productId] || serverProduct;
-    }
-  }, [productId, serverProducts, localProducts, modifiedProducts]);
-
-  const handleSubmit = async (data: ProductFormValues, file: File | null) => {
-    setIsSubmitting(true);
-    
-    try {
-      const updatedProduct: Product = {
-        ...productToEdit!,
-        title: data.title,
-        price: parseFloat(data.price) || 0,
-        description: data.description,
-        category: data.newCategory?.trim() || data.category,
-        ...(file ? { image: URL.createObjectURL(file) } : {})
-      };
-
-      if (productId >= 20) {
-        // Редактирование локального продукта
-        const updatedProducts = localProducts.map(p => 
-          p.id === productId ? updatedProduct : p
-        );
-        setLocalProducts(updatedProducts);
-        sessionStorage.setItem("products", JSON.stringify(updatedProducts));
-      } else {
-        // Редактирование серверного продукта (сохраняем изменения локально)
-        const updatedModified = { ...modifiedProducts, [productId]: updatedProduct };
-        setModifiedProducts(updatedModified);
-        sessionStorage.setItem("modifiedProducts", JSON.stringify(updatedModified));
-      }
-
-      router.push("/products?refresh=" + Date.now());
-    } catch (error) {
-      console.error("Ошибка при обновлении товара:", error);
-      alert("Произошла ошибка при обновлении товара");
-    } finally {
-      setIsSubmitting(false);
-    }
+    dispatch(updateProduct(updatedProduct));
+    router.push("/products");
   };
 
-  if (!productToEdit) return <div className={styles.loading}>Загрузка...</div>;
+  const initialProduct = product || serverProduct;
+  if (!initialProduct) return <div className={styles.error}>Товар не найден</div>;
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Редактировать товар</h1>
-      <ProductForm
-        initialData={productToEdit}
+      <h1 className={styles.title}>Редактирование товара</h1>
+      <ProductForm 
+        initialData={{ 
+          title: initialProduct.title || '',
+          price: initialProduct.price?.toString() || '0',
+          description: initialProduct.description || '',
+          category: initialProduct.category || '',
+          image: initialProduct.image || '',
+          newCategory: ''
+        }}
         onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        existingCategories={existingCategories}
-        setExistingCategories={setExistingCategories}
+        isSubmitting={false}
+        existingCategories={Array.from(new Set([initialProduct.category]))}
+        setExistingCategories={() => {}}
         fileInputRef={fileInputRef}
       />
     </div>

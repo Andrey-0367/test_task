@@ -2,50 +2,53 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Product } from '@/shared/types/products';
 
 interface ProductsState {
-  items: Product[];
-  loading: boolean;
-  error: string | null;
+  localProducts: Product[];
 }
 
 const initialState: ProductsState = {
-  items: [],
-  loading: false,
-  error: null,
+  localProducts: [],
 };
 
-const productsSlice = createSlice({
+export const productsSlice = createSlice({
   name: 'products',
   initialState,
   reducers: {
-    fetchProductsStart(state) {
-      state.loading = true;
-      state.error = null;
-    },
-    fetchProductsSuccess(state, action: PayloadAction<Product[]>) {
-      state.items = action.payload.map(product => ({
-        ...product,
-        rating: product.rating 
-      }));
-      state.loading = false;
-    },
-    fetchProductsFailure(state, action: PayloadAction<string>) {
-      state.error = action.payload;
-      state.loading = false;
-    },
-    updateProduct(state, action: PayloadAction<Product>) {
-      const index = state.items.findIndex(p => p.id === action.payload.id);
-      if (index !== -1) {
-        state.items[index] = action.payload;
+    addProduct: {
+      reducer(state, action: PayloadAction<Product>) {
+        state.localProducts.unshift(action.payload);
+      },
+      prepare(product: Omit<Product, 'id'>) {
+        const id = Date.now();
+        return { payload: { ...product, id } };
       }
     },
+
+    updateProduct(state, action: PayloadAction<Product>) {
+      const index = state.localProducts.findIndex(p => p.id === action.payload.id);
+      
+      if (index !== -1) {
+        state.localProducts[index] = action.payload;
+      } else {
+        state.localProducts.unshift(action.payload);
+      }
+    },
+
+    deleteProduct(state, action: PayloadAction<number>) {
+      state.localProducts = state.localProducts.filter(p => p.id !== action.payload);
+    },
   },
+  extraReducers: (builder) => {
+    builder.addMatcher(
+      (action) => action.type.includes('productsApi'),
+      (state) => state 
+    );
+  }
 });
 
 export const { 
-  fetchProductsStart, 
-  fetchProductsSuccess, 
-  fetchProductsFailure,
-  updateProduct
+  addProduct, 
+  updateProduct, 
+  deleteProduct,
 } = productsSlice.actions;
 
 export default productsSlice.reducer;

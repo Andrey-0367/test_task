@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
 import styles from "./page.module.scss";
 import { ProductForm, ProductFormValues } from "@/components/ProductForm";
-import { Product } from "@/shared/types/products";
 import { useState, useRef } from "react";
+import { addProduct } from "@/features/products/productsSlice";
 
 export default function CreateProductPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -17,41 +19,34 @@ export default function CreateProductPage() {
     
     try {
       if (!file) {
-        alert("Пожалуйста, выберите изображение");
-        setIsSubmitting(false);
+        alert("Please select an image");
         return;
       }
 
-      // Получаем текущие продукты
-      const existingProducts = JSON.parse(
-        sessionStorage.getItem("products") || "[]"
-      );
+      if (!data.title.trim() || !data.price) {
+        alert("Title and price are required");
+        return;
+      }
 
-      // Генерируем новый ID
-      const newId = existingProducts.length > 0
-        ? Math.max(...existingProducts.map((p: Product) => p.id)) + 1
-        : 1;
-
-      // Создаем новый продукт
-      const newProduct: Product = {
-        id: newId,
-        title: data.title,
-        price: parseFloat(data.price) || 0,
-        description: data.description,
-        category: data.newCategory?.trim() || data.category,
+      const productData = {
+        title: data.title.trim(),
+        price: parseFloat(data.price),
+        description: data.description?.trim() || "",
+        category: data.newCategory?.trim() || data.category || "other",
         image: URL.createObjectURL(file),
         rating: { rate: 0, count: 0 },
       };
 
-      // Обновляем список продуктов
-      const updatedProducts = [newProduct, ...existingProducts];
-      sessionStorage.setItem("products", JSON.stringify(updatedProducts));
+      dispatch(addProduct(productData));
 
-      // Перенаправляем с флагом обновления
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       router.push("/products?refresh=" + Date.now());
     } catch (error) {
-      console.error("Ошибка при создании товара:", error);
-      alert("Произошла ошибка при создании товара");
+      console.error("Product creation failed:", error);
+      alert("Failed to create product. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -59,7 +54,7 @@ export default function CreateProductPage() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Создать новый товар</h1>
+      <h1 className={styles.title}>Create New Product</h1>
       <ProductForm
         onSubmit={onSubmit}
         isSubmitting={isSubmitting}

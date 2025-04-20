@@ -6,53 +6,50 @@ import { toggleFavorite } from "@/features/favorites/favoritesSlice";
 import { RootState } from "@/store/store";
 import { useAppDispatch } from "@/store/hooks";
 import styles from "./ProductsList.module.scss";
-import { Product } from "@/shared/types/products";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { deleteProduct } from "@/features/products/productsSlice";
 
 type FilterMode = "all" | "categories" | "favorites";
 
 export function ProductsList() {
-  // Состояния
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
-  const [localProducts, setLocalProducts] = useState<Product[]>([]);
   const [deletedServerIds, setDeletedServerIds] = useState<number[]>([]);
-
-  // Реф для меню категорий
   const categoryMenuRef = useRef<HTMLDivElement>(null);
 
-  // Данные с сервера
-  const {
-    data: serverProducts = [],
-    isLoading,
-    isError,
-  } = useGetProductsQuery();
-
-  // Внешние зависимости
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const dispatch = useAppDispatch();
-  const favorites = useSelector((state: RootState) => state.favorites.items);
-
-  // Загрузка локальных данных
+  // Загрузка сохраненных ID удаленных серверных продуктов
   useEffect(() => {
-    const storedProducts = sessionStorage.getItem("localProducts");
-    const storedDeleted = sessionStorage.getItem("deletedServerIds");
-
-    if (storedProducts) setLocalProducts(JSON.parse(storedProducts));
-    if (storedDeleted) setDeletedServerIds(JSON.parse(storedDeleted));
+    const savedDeletedIds = localStorage.getItem('deletedServerIds');
+    if (savedDeletedIds) {
+      setDeletedServerIds(JSON.parse(savedDeletedIds));
+    }
   }, []);
 
-  // Объединение продуктов (новые в начале)
+  const { data: serverProducts = [], isLoading, isError } = useGetProductsQuery();
+  const localProducts = useSelector((state: RootState) => state.products.localProducts);
+  const favorites = useSelector((state: RootState) => state.favorites.items);
+  const dispatch = useAppDispatch();
+  const router = useRouter();
+
   const allProducts = useMemo(() => {
-    const filteredServerProducts = serverProducts.filter(
-      (p) => !deletedServerIds.includes(p.id)
-    );
-    return [...localProducts, ...filteredServerProducts];
-  }, [serverProducts, localProducts, deletedServerIds]);
+    // Берем все локальные продукты
+    const local = [...localProducts];
+    
+    // Добавляем серверные, которые не были удалены и не имеют локальной версии
+    serverProducts.forEach(serverProduct => {
+      if (
+        !deletedServerIds.includes(serverProduct.id) &&
+        !local.some(l => l.id === serverProduct.id)
+      ) {
+        local.push(serverProduct);
+      }
+    });
+    
+    return local;
+  }, [localProducts, serverProducts, deletedServerIds]);
 
   // Категории
   const categories = useMemo(() => {
@@ -112,37 +109,26 @@ export function ProductsList() {
     setIsCategoryMenuOpen(false);
   };
 
-  // Исправленный обработчик удаления
-  const handleDelete = useCallback(
-    (productId: number) => {
-      if (!window.confirm("Вы уверены, что хотите удалить этот товар?")) return;
+  const handleDelete = useCallback((productId: number) => {
+    if (!window.confirm("Вы уверены, что хотите удалить этот товар?")) return;
+    
+    if (productId >= 1000) {
+      // Локальные продукты
+      dispatch(deleteProduct(productId));
+    } else {
+      // Серверные продукты
+      const updatedDeleted = [...deletedServerIds, productId];
+      setDeletedServerIds(updatedDeleted);
+      localStorage.setItem('deletedServerIds', JSON.stringify(updatedDeleted));
+    }
+    
+    router.push(`/products?refresh=${Date.now()}`);
+  }, [dispatch, router, deletedServerIds]);
+  
 
-      // Проверяем, является ли продукт локальным (ID >= 1000)
-      if (productId >= 1000) {
-        const updatedProducts = localProducts.filter((p) => p.id !== productId);
-        setLocalProducts(updatedProducts);
-        sessionStorage.setItem("localProducts", JSON.stringify(updatedProducts));
-      } else {
-        // Для серверных продуктов добавляем ID в список удаленных
-        if (!deletedServerIds.includes(productId)) {
-          const updatedDeleted = [...deletedServerIds, productId];
-          setDeletedServerIds(updatedDeleted);
-          sessionStorage.setItem(
-            "deletedServerIds",
-            JSON.stringify(updatedDeleted)
-          );
-        }
-      }
-    },
-    [localProducts, deletedServerIds]
-  );
-
-  const handleEdit = useCallback(
-    (productId: number) => {
-      router.push(`/products/edit/${productId}`);
-    },
-    [router]
-  );
+  const handleEdit = (productId: number) => {
+    router.push(`/products/edit/${productId}`);
+  };
 
   const handleToggleFavorite = useCallback(
     (productId: number) => {
@@ -158,40 +144,6 @@ export function ProductsList() {
     setIsCategoryMenuOpen(false);
   }, []);
 
-  // Обработка добавления нового продукта
-  useEffect(() => {
-    if (searchParams.has('new')) {
-      try {
-        const newProductJson = searchParams.get('new');
-        if (newProductJson) {
-          const newProductData = JSON.parse(newProductJson);
-          
-          // Генерируем ID для нового продукта (начиная с 1000)
-          const newId = localProducts.length > 0 
-            ? Math.max(...localProducts.map(p => p.id)) + 1 
-            : 1000;
-  
-          const newProduct: Product = {
-            ...newProductData,
-            id: newId,
-            rating: { rate: 0, count: 0 }
-          };
-  
-          // Добавляем новый продукт в начало списка
-          const updatedProducts = [newProduct, ...localProducts];
-          setLocalProducts(updatedProducts);
-          sessionStorage.setItem("localProducts", JSON.stringify(updatedProducts));
-  
-          // Очищаем параметр URL (исправленная версия)
-          const newSearchParams = new URLSearchParams(searchParams.toString());
-          newSearchParams.delete('new');
-          router.replace(`/products?${newSearchParams.toString()}`);
-        }
-      } catch (e) {
-        console.error("Ошибка при добавлении нового продукта", e);
-      }
-    }
-  }, [searchParams, localProducts, router]);
 
   if (isLoading)
     return <div className={styles.loading}>Загрузка товаров...</div>;
