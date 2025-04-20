@@ -41,18 +41,17 @@
 
 ## Установка и запуск
 
-Клонировать репозиторий:
 ```bash
 git clone https://github.com/Andrey-0367/test_task.git
 cd test_task
-Установить зависимости:
 
+Установить зависимости:
 bash
 npm install
 # или
 yarn install
-Запустить приложение:
 
+Запустить приложение:
 bash
 npm run dev
 # или
