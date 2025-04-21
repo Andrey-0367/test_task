@@ -1,31 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', 
+  output: 'export',
   basePath: '/test_task',
   trailingSlash: true,
   images: {
-    unoptimized: true 
-  },
-  reactStrictMode: true,
-  swcMinify: true,
-  modularizeImports: {
-    '@reduxjs/toolkit': {
-      transform: '@reduxjs/toolkit/dist/{{member}}',
-    },
-    'react-redux': {
-      transform: 'react-redux/es/{{member}}',
-    },
-  },
-  experimental: {
-    swcPlugins: [
-      ['next-superjson-plugin', {}]
-    ],
-    serverActions: true,
-  },
-  compiler: {
-    styledComponents: true,
-  },
-  images: {
+    unoptimized: true,
     domains: ['fakestoreapi.com'],
     remotePatterns: [
       {
@@ -37,10 +16,6 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'jsonplaceholder.typicode.com',
         pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.example.com', 
       },
     ],
     minimumCacheTTL: 86400,

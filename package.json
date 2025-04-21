@@ -1,11 +1,9 @@
 {
   "name": "product-spa",
   "scripts": {
-    "clean": "rm -rf .next && rm -rf node_modules/.cache",
-    "clean:full": "npm run clean && rm -rf node_modules package-lock.json",
-    "dev": "next dev",
     "build": "next build",
-    "deploy": "npm run build",
+    "postbuild": "node scripts/postbuild.js",
+    "dev": "next dev",
     "lint": "next lint"
   },
   "dependencies": {
@@ -22,7 +20,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
     "@svgr/webpack": "^8.1.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.17.30",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
     "eslint": "^8.56.0",
