@@ -1,9 +1,10 @@
 const nextConfig = {
   output: 'export',
-  reactStrictMode: true,
-  basePath: process.env.NODE_ENV === 'production' ? '/test_task' : '',
+  basePath: '/test_task',
+  trailingSlash: true,
   images: {
     unoptimized: true
   }
 }
+
 module.exports = nextConfig
