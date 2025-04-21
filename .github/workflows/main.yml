@@ -1,38 +1,56 @@
-name: Deploy to GitHub Pages
-
+name: Publish to GitHub Pages
 on:
   push:
-    branches: [master]
+    branches:
+      - master
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ⚙️
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          
-      - run: npm ci
-      - run: npm run build
-      
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Cache dependencies ⚡
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies 🔧
+        run: npm ci
+
+      - name: Build with Next.js 🏗️
+        run: npx next build
+
+      - name: Upload artifact 📡
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
   deploy:
-    needs: build
     runs-on: ubuntu-latest
-    environment: 
+    needs: build
+    environment:  
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
-      - uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages 🚀
         id: deployment
+        uses: actions/deploy-pages@v4
