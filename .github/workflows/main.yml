@@ -19,16 +19,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Build with Next.js
+        run: npm run build     
           
       - run: npm ci
-      - run: npm run build
       
       - name: Create .nojekyll
         run: touch out/.nojekyll
-        
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: 'out'
+          path: ./out  
+
 
   deploy:
     needs: build
