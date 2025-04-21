@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "export": "next export",
     "dev": "next dev",
     "clean": "rm -rf .next out node_modules/.cache"
   },
