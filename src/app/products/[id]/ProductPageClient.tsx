@@ -7,7 +7,11 @@ import { useGetProductByIdQuery } from "@/features/products/api/productsApi";
 import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
 
-export default function ProductPageClient({ id }: { id: string }) {
+interface Props {
+  id: string;
+}
+
+export default function ProductPageClient({ id }: Props) {
   const router = useRouter();
   const params = useParams();
   const [product, setProduct] = useState<Product | null>(null);

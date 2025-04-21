@@ -1,13 +1,24 @@
-import { Product } from "@/shared/types/products";
+import { Metadata } from "next";
 import ProductPageClient from "./ProductPageClient";
 
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+const mockProducts = Array.from({ length: 19 }, (_, i) => ({ id: i + 1 }));
+
 export async function generateStaticParams() {
-  const products = await fetch('https://api.example.com/products').then(res => res.json());
-  return products.map((product: Product) => ({
-    id: product.id.toString()
+  return mockProducts.map((product) => ({
+    id: product.id.toString(),
   }));
 }
 
-export default function Page({ params }: { params: { id: string } }) {
-  return <ProductPageClient id={params.id} />;
+export const metadata: Metadata = {
+  title: 'Product Details',
+  description: 'Detailed product information',
+};
+
+export default async function Page(props: PageProps) {
+  const { id } = await props.params;
+  return <ProductPageClient id={id} />;
 }

@@ -12,8 +12,7 @@ export default function CreateProductPage() {
   const dispatch = useDispatch();
   const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const onSubmit = async (data: ProductFormValues, file: File | null) => {
     setIsSubmitting(true);
     
@@ -60,7 +59,7 @@ export default function CreateProductPage() {
         isSubmitting={isSubmitting}
         existingCategories={existingCategories}
         setExistingCategories={setExistingCategories}
-        fileInputRef={fileInputRef}
+        fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>} 
       />
     </div>
   );

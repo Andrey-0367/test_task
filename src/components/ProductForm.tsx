@@ -18,7 +18,7 @@ interface ProductFormProps {
   isSubmitting: boolean;
   existingCategories: string[];
   setExistingCategories: (categories: string[]) => void;
-  fileInputRef: RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   onCancel?: () => void;
   initialData?: {
     title: string;

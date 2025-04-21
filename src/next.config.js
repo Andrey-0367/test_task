@@ -1,15 +1,9 @@
 const nextConfig = {
   output: 'export',
-  basePath: '/test_task',
-  trailingSlash: true,
+  basePath: process.env.NODE_ENV === 'production' ? '/Andrey-0367/test_task' : '',
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'fakestoreapi.com',
-      },
-    ],
+    unoptimized: true,
   },
-}
+};
 
 module.exports = nextConfig
