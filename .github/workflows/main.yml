@@ -18,9 +18,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       
       - name: Build project
         run: npm run build
@@ -29,8 +30,8 @@ jobs:
       
       - name: Prepare deployment
         run: |
-          touch ./out/.nojekyll
-          echo "/ /index.html 200" > ./out/_redirects
+          mkdir -p ./out/_next
+          cp -r ./.next/static ./out/_next/static
       
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4

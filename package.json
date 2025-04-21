@@ -5,8 +5,7 @@
     "clean:full": "npm run clean && rm -rf node_modules package-lock.json",
     "dev": "next dev",
     "build": "next build",
-    "export": "next export",
-    "deploy": "npm run build && npm run export",
+    "deploy": "npm run build",
     "lint": "next lint"
   },
   "dependencies": {
