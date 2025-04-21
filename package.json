@@ -5,7 +5,9 @@
     "clean:full": "npm run clean && rm -rf node_modules package-lock.json",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "export": "next export",
+    "predeploy": "npm run build && npm run export",
+    "deploy": "gh-pages -d out",
     "lint": "next lint"
   },
   "dependencies": {
