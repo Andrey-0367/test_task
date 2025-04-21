@@ -1,7 +1,13 @@
-'use client';
+// import { ProductsList } from '@/components/ProductsList/ProductsList';
 
-import { redirect } from 'next/navigation';
+// export default function Home() {
+//   return (
+//     <main >
+//       <ProductsList />
+//     </main>
+//   );
+// }
 
 export default function Home() {
-  redirect('/products');
+  return <div>Test Page</div>
 }

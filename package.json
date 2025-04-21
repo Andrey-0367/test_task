@@ -1,10 +1,12 @@
 {
   "name": "product-spa",
+  "version": "0.1.0",
+  "homepage": "https://andrey-0367.github.io/test_task",
+  "private":"true",
   "scripts": {
     "build": "next build",
-    "postbuild": "node scripts/postbuild.js",
     "dev": "next dev",
-    "lint": "next lint"
+    "clean": "rm -rf .next out node_modules/.cache"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.6.1",
