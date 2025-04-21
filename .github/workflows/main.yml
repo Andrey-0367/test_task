@@ -22,14 +22,15 @@ jobs:
       - name: Install dependencies
         run: npm install
       
-      - name: Build and Export
-        run: |
-          npm run build
-          npm run export
-          echo "Redirect / /test_task/index.html" > ./out/_redirects
+      - name: Build project
+        run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: '/test_task'
       
+      - name: Prepare deployment
+        run: |
+          touch ./out/.nojekyll
+          echo "/ /index.html 200" > ./out/_redirects
+      
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
-        

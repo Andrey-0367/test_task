@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  output: 'export', 
   basePath: '/test_task',
   trailingSlash: true,
   images: {
-    unoptimized: true
+    unoptimized: true 
   },
   reactStrictMode: true,
   swcMinify: true,
