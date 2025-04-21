@@ -1,7 +1,7 @@
 const nextConfig = {
   output: 'export',
   reactStrictMode: true,
-  basePath: '/test_task',
+  basePath: process.env.NODE_ENV === 'production' ? '/test_task' : '',
   images: {
     unoptimized: true
   }
