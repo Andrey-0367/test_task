@@ -105,7 +105,7 @@ export function ProductCard({
             height={200}
             onError={() => setImageError(true)}
             priority={false}
-            unoptimized={process.env.NODE_ENV !== "production"}
+            unoptimized
           />
         ) : (
           <div className={styles.imagePlaceholder}>
