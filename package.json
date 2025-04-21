@@ -2,7 +2,7 @@
   "name": "product-spa",
   "version": "0.1.0",
   "homepage": "https://andrey-0367.github.io/test_task",
-  "private":"true",
+  "private": true,
   "scripts": {
     "build": "next build",
     "dev": "next dev",
