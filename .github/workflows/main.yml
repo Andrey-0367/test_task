@@ -1,11 +1,11 @@
-name: Deploy Next.js to GitHub Pages
+name: Deploy Next.js App
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -18,28 +18,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: Install dependencies
         run: npm install
       
-      - name: Build project
+      - name: Build and Export
         run: |
           npm run build
           npm run export
+          echo "Redirect / /test_task/index.html" > ./out/_redirects
         env:
           NEXT_PUBLIC_BASE_PATH: '/test_task'
       
-      - name: Create .nojekyll
-        run: touch ./out/.nojekyll
-      
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: 'out'
-      
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
+        
