@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # Используем LTS версию Node.js
+          cache: 'npm'        # Меняем yarn на npm (или оставьте yarn если используете его)
+          
+      - name: Install dependencies
+        run: npm ci           # Более строгая установка зависимостей чем npm install
+      
+      - name: Build project
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: '/test_task'  # Ваша базовая переменная
+      
+      - name: Prepare deployment
+        run: |
+          mkdir -p out
+          echo '/* /index.html 200' > out/_redirects
+          touch out/.nojekyll
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'out'         # Путь к собранному проекту
+      
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4  # Официальный action от GitHub
