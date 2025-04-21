@@ -1,11 +1,9 @@
 {
   "name": "product-spa",
   "version": "0.1.0",
-  "homepage": "https://andrey-0367.github.io/test_task",
   "private": true,
   "scripts": {
     "build": "next build",
-    "export": "next export",
     "dev": "next dev",
     "clean": "rm -rf .next out node_modules/.cache"
   },
